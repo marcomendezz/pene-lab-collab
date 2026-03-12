@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pene Lab — Visual Canvas</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',sans-serif;background:#0d1117;color:#c9d1d9;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+.header{background:#161b22;border-bottom:1px solid #30363d;padding:12px 24px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.header h1{font-size:18px;background:linear-gradient(90deg,#00d2ff,#7b2ff7);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.header .links{display:flex;gap:12px}
+.header a{color:#58a6ff;text-decoration:none;font-size:13px;padding:4px 10px;border:1px solid #30363d;border-radius:6px}
+.header a:hover{border-color:#58a6ff}
+.legend{display:flex;gap:16px;font-size:11px;align-items:center}
+.legend-item{display:flex;align-items:center;gap:4px}
+.legend-dot{width:12px;height:12px;border-radius:3px}
+
+canvas{flex:1;cursor:grab}
+canvas:active{cursor:grabbing}
+
+.tooltip{position:fixed;background:#161b22;border:1px solid #30363d;border-radius:8px;padding:10px 14px;font-size:12px;pointer-events:none;display:none;z-index:10;max-width:250px}
+.tooltip .tt-title{font-weight:700;margin-bottom:4px}
+.tooltip .tt-agent{font-size:11px;margin-bottom:2px}
+.tooltip .tt-status{font-size:11px}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>PENE LAB — Visual Canvas</h1>
+<div class="legend">
+<div class="legend-item"><div class="legend-dot" style="background:#3fb950"></div> Done</div>
+<div class="legend-item"><div class="legend-dot" style="background:#d29922"></div> Active</div>
+<div class="legend-item"><div class="legend-dot" style="background:#8b949e"></div> Pending</div>
+<div class="legend-item"><div class="legend-dot" style="background:#00d2ff"></div> Jarvis</div>
+<div class="legend-item"><div class="legend-dot" style="background:#7b2ff7"></div> Hermes</div>
+<div class="legend-item"><div class="legend-dot" style="background:#f0883e"></div> Milestone</div>
+</div>
+<div class="links">
+<a href="index.html">Dashboard</a>
+<a href="#" onclick="refreshCanvas()">Refresh</a>
+</div>
+</div>
+<canvas id="cv"></canvas>
+<div class="tooltip" id="tooltip">
+<div class="tt-title" id="tt-title"></div>
+<div class="tt-agent" id="tt-agent"></div>
+<div class="tt-status" id="tt-status"></div>
+</div>
+<script>
+const cv=document.getElementById('cv'),ctx=cv.getContext('2d'),tt=document.getElementById('tooltip');
+let W,H,nodes=[],edges=[],pan={x:0,y:0},zoom=1,drag=null,panStart=null,hovered=null;
+
+function resize(){W=cv.width=window.innerWidth;H=cv.height=window.innerHeight-50}
+window.addEventListener('resize',resize);resize();
+
+const COLORS={done:'#3fb950',active:'#d29922',pending:'#8b949e',blocked:'#f85149'};
+const AGENT_COLORS={jarvis:'#00d2ff',hermes:'#7b2ff7'};
+const MILESTONE_COLOR='#f0883e';
+
+function drawEdge(e){
+const from=nodes.find(n=>n.id===e.from),to=nodes.find(n=>n.id===e.to);
+if(!from||!to)return;
+const fx=from.x*zoom+pan.x,fy=from.y*zoom+pan.y,tx=to.x*zoom+pan.x,ty=to.y*zoom+pan.y;
+ctx.beginPath();ctx.moveTo(fx,fy);
+const cy1=fy+(ty-fy)*0.5;
+ctx.bezierCurveTo(fx,cy1,tx,cy1,tx,ty);
+ctx.strokeStyle='#30363d';ctx.lineWidth=2*zoom;ctx.stroke();
+// Arrow
+const angle=Math.atan2(ty-cy1,tx-tx);
+const ax=tx,ay=ty-6*zoom;
+ctx.beginPath();ctx.moveTo(ax-5*zoom,ay);ctx.lineTo(ax,ay+8*zoom);ctx.lineTo(ax+5*zoom,ay);
+ctx.fillStyle='#30363d';ctx.fill();
+}
+
+function drawNode(n){
+const x=n.x*zoom+pan.x,y=n.y*zoom+pan.y;
+const w=140*zoom,h=44*zoom,r=8*zoom;
+const isMilestone=n.type==='milestone';
+const statusColor=COLORS[n.status]||COLORS.pending;
+const agentColor=n.agent?AGENT_COLORS[n.agent]:null;
+
+// Shadow
+ctx.shadowColor='rgba(0,0,0,0.4)';ctx.shadowBlur=8*zoom;ctx.shadowOffsetY=2*zoom;
+
+// Background
+ctx.beginPath();
+if(isMilestone){
+// Diamond shape
+ctx.moveTo(x,y-h*0.7);ctx.lineTo(x+w*0.5,y);ctx.lineTo(x,y+h*0.7);ctx.lineTo(x-w*0.5,y);ctx.closePath();
+ctx.fillStyle='#1a1520';ctx.fill();
+ctx.strokeStyle=MILESTONE_COLOR;ctx.lineWidth=2*zoom;ctx.stroke();
+}else{
+// Rounded rect
+ctx.roundRect(x-w/2,y-h/2,w,h,r);
+ctx.fillStyle=n===hovered?'#1e2530':'#161b22';ctx.fill();
+// Left accent bar
+ctx.beginPath();ctx.roundRect(x-w/2,y-h/2,4*zoom,h,[r,0,0,r]);
+ctx.fillStyle=agentColor||statusColor;ctx.fill();
+// Border
+ctx.beginPath();ctx.roundRect(x-w/2,y-h/2,w,h,r);
+ctx.strokeStyle=n===hovered?(agentColor||'#58a6ff'):'#30363d';ctx.lineWidth=(n===hovered?2:1)*zoom;ctx.stroke();
+}
+
+ctx.shadowColor='transparent';ctx.shadowBlur=0;ctx.shadowOffsetY=0;
+
+// Status dot
+if(!isMilestone){
+ctx.beginPath();ctx.arc(x+w/2-12*zoom,y-h/2+12*zoom,4*zoom,0,Math.PI*2);
+ctx.fillStyle=statusColor;ctx.fill();
+}
+
+// Label
+ctx.fillStyle=isMilestone?MILESTONE_COLOR:'#c9d1d9';
+ctx.font=`${(isMilestone?12:11)*zoom}px 'Segoe UI', sans-serif`;
+ctx.textAlign='center';ctx.textBaseline='middle';
+const label=n.label.length>18?n.label.substring(0,16)+'..':n.label;
+ctx.fillText(label,x,y-(isMilestone?0:2*zoom));
+
+// Agent name
+if(n.agent&&!isMilestone){
+ctx.fillStyle=agentColor||'#8b949e';
+ctx.font=`${9*zoom}px 'Segoe UI', sans-serif`;
+ctx.fillText(n.agent.charAt(0).toUpperCase()+n.agent.slice(1),x,y+12*zoom);
+}
+}
+
+function draw(){
+ctx.clearRect(0,0,W,H);
+// Grid
+ctx.strokeStyle='#21262d';ctx.lineWidth=1;
+const gs=60*zoom;
+for(let x=(pan.x%gs);x<W;x+=gs){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke()}
+for(let y=(pan.y%gs);y<H;y+=gs){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke()}
+edges.forEach(drawEdge);
+nodes.forEach(drawNode);
+requestAnimationFrame(draw);
+}
+
+function hitTest(mx,my){
+for(let i=nodes.length-1;i>=0;i--){
+const n=nodes[i],x=n.x*zoom+pan.x,y=n.y*zoom+pan.y;
+const w=70*zoom,h=22*zoom;
+if(mx>x-w&&mx<x+w&&my>y-h&&my<y+h)return n;
+}return null;
+}
+
+cv.addEventListener('mousedown',e=>{
+const n=hitTest(e.clientX,e.clientY-50);
+if(n){drag={node:n,ox:e.clientX-n.x*zoom-pan.x,oy:e.clientY-50-n.y*zoom-pan.y}}
+else{panStart={x:e.clientX-pan.x,y:e.clientY-pan.y}}
+});
+cv.addEventListener('mousemove',e=>{
+const mx=e.clientX,my=e.clientY-50;
+if(drag){drag.node.x=(mx-drag.ox-pan.x)/zoom;drag.node.y=(my-drag.oy-pan.y)/zoom}
+else if(panStart){pan.x=mx-panStart.x;pan.y=my-panStart.y}
+else{
+const n=hitTest(mx,my);
+hovered=n;
+if(n){
+tt.style.display='block';tt.style.left=(mx+15)+'px';tt.style.top=(my+60)+'px';
+document.getElementById('tt-title').textContent=n.label;
+document.getElementById('tt-agent').textContent=n.agent?'Agent: '+n.agent:'';
+document.getElementById('tt-status').textContent='Status: '+n.status;
+tt.style.borderColor=n.agent?AGENT_COLORS[n.agent]:'#30363d';
+}else{tt.style.display='none'}
+}
+});
+cv.addEventListener('mouseup',()=>{drag=null;panStart=null;savePositions()});
+cv.addEventListener('wheel',e=>{
+const oldZoom=zoom;
+zoom=Math.max(0.3,Math.min(3,zoom-e.deltaY*0.001));
+const mx=e.clientX,my=e.clientY-50;
+pan.x=mx-(mx-pan.x)*(zoom/oldZoom);
+pan.y=my-(my-pan.y)*(zoom/oldZoom);
+e.preventDefault();
+},{passive:false});
+
+function savePositions(){
+localStorage.setItem('penelab_canvas_positions',JSON.stringify(nodes.map(n=>({id:n.id,x:n.x,y:n.y}))));
+}
+function loadPositions(){
+try{const saved=JSON.parse(localStorage.getItem('penelab_canvas_positions')||'[]');
+saved.forEach(s=>{const n=nodes.find(x=>x.id===s.id);if(n){n.x=s.x;n.y=s.y}});}catch(e){}
+}
+
+async function refreshCanvas(){
+try{
+const r=await fetch(`https://api.github.com/repos/marcomendezz/pene-lab-collab/contents/shared-context/canvas-data.json`,
+{headers:{'Accept':'application/vnd.github.v3.raw'}});
+if(r.ok){const d=await r.json();nodes=d.nodes;edges=d.edges;loadPositions();
+// Center canvas
+pan.x=W/2-400*zoom;pan.y=50;
+}
+}catch(e){console.error(e)}
+}
+
+refreshCanvas();
+draw();
+setInterval(refreshCanvas,30000);
+</script>
+</body>
+</html>

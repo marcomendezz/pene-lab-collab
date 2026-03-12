@@ -1,0 +1,40 @@
+{
+  "nodes": [
+    {"id": "start", "label": "Project Start", "type": "milestone", "x": 400, "y": 50, "status": "done"},
+    {"id": "repo", "label": "Repo Created", "type": "task", "x": 200, "y": 150, "status": "done", "agent": "hermes"},
+    {"id": "connect", "label": "Bots Connected", "type": "milestone", "x": 400, "y": 150, "status": "done"},
+    {"id": "arch-j", "label": "Jarvis Architecture", "type": "task", "x": 200, "y": 250, "status": "done", "agent": "jarvis"},
+    {"id": "arch-h", "label": "Hermes Architecture", "type": "task", "x": 600, "y": 250, "status": "done", "agent": "hermes"},
+    {"id": "best", "label": "Best Practices Doc", "type": "task", "x": 400, "y": 350, "status": "done", "agent": "jarvis"},
+    {"id": "dash-v1", "label": "Dashboard v1", "type": "task", "x": 200, "y": 350, "status": "done", "agent": "hermes"},
+    {"id": "dash-v2", "label": "Dashboard v2 Avatars", "type": "task", "x": 600, "y": 350, "status": "done", "agent": "jarvis"},
+    {"id": "dash-v3", "label": "Dashboard v3 Dual Chat", "type": "task", "x": 400, "y": 450, "status": "done", "agent": "jarvis"},
+    {"id": "realtime", "label": "WebSocket Realtime", "type": "task", "x": 200, "y": 450, "status": "done", "agent": "jarvis"},
+    {"id": "watchdog", "label": "Watchdog System", "type": "task", "x": 600, "y": 450, "status": "done", "agent": "jarvis"},
+    {"id": "canvas", "label": "Miro Canvas", "type": "task", "x": 400, "y": 550, "status": "active", "agent": "jarvis"},
+    {"id": "personas", "label": "Bot Personalities", "type": "task", "x": 200, "y": 550, "status": "active", "agent": "hermes"},
+    {"id": "project", "label": "First Real Project", "type": "milestone", "x": 400, "y": 650, "status": "pending"},
+    {"id": "autocomp", "label": "Auto-Compaction", "type": "task", "x": 600, "y": 550, "status": "pending", "agent": "jarvis"},
+    {"id": "confidence", "label": "Confidence Scores", "type": "task", "x": 150, "y": 650, "status": "pending", "agent": "hermes"}
+  ],
+  "edges": [
+    {"from": "start", "to": "repo"},
+    {"from": "start", "to": "connect"},
+    {"from": "connect", "to": "arch-j"},
+    {"from": "connect", "to": "arch-h"},
+    {"from": "arch-j", "to": "best"},
+    {"from": "arch-h", "to": "best"},
+    {"from": "connect", "to": "dash-v1"},
+    {"from": "dash-v1", "to": "dash-v2"},
+    {"from": "dash-v2", "to": "dash-v3"},
+    {"from": "dash-v3", "to": "realtime"},
+    {"from": "dash-v3", "to": "watchdog"},
+    {"from": "dash-v3", "to": "canvas"},
+    {"from": "canvas", "to": "project"},
+    {"from": "personas", "to": "project"},
+    {"from": "best", "to": "autocomp"},
+    {"from": "best", "to": "confidence"},
+    {"from": "autocomp", "to": "project"},
+    {"from": "confidence", "to": "project"}
+  ]
+}
