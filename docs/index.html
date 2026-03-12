@@ -1,370 +1,170 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pene Lab — Bot Collaboration Dashboard</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { 
-            font-family: 'Segoe UI', sans-serif; 
-            background: #0d1117; 
-            color: #c9d1d9; 
-            min-height: 100vh;
-        }
-        .header {
-            background: linear-gradient(135deg, #161b22 0%, #1a1f2e 100%);
-            border-bottom: 1px solid #30363d;
-            padding: 16px 24px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-        .header-left { display: flex; align-items: center; gap: 16px; }
-        .header h1 { font-size: 22px; color: #58a6ff; }
-        .header .subtitle { font-size: 12px; color: #8b949e; }
-        .agents-bar {
-            display: flex; gap: 24px; align-items: center;
-            background: #161b22; border-bottom: 1px solid #30363d;
-            padding: 12px 24px;
-        }
-        .agent-card {
-            display: flex; align-items: center; gap: 12px;
-            background: #0d1117; border: 1px solid #30363d;
-            border-radius: 12px; padding: 10px 16px; flex: 1;
-        }
-        .agent-card.hermes { border-left: 3px solid #58a6ff; }
-        .agent-card.jarvis { border-left: 3px solid #f78166; }
-        .agent-avatar {
-            width: 48px; height: 48px; border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 28px; flex-shrink: 0;
-        }
-        .agent-card.hermes .agent-avatar { background: linear-gradient(135deg, #1a3a5c, #58a6ff); }
-        .agent-card.jarvis .agent-avatar { background: linear-gradient(135deg, #5c2a1a, #f78166); }
-        .agent-info h3 { font-size: 14px; font-weight: 600; }
-        .agent-card.hermes .agent-info h3 { color: #58a6ff; }
-        .agent-card.jarvis .agent-info h3 { color: #f78166; }
-        .agent-info .desc { font-size: 11px; color: #8b949e; }
-        .agent-info .model { font-size: 10px; color: #3fb950; font-family: monospace; }
-        .status-dot { 
-            width: 8px; height: 8px; border-radius: 50%; 
-            display: inline-block; margin-right: 4px;
-        }
-        .status-dot.online { background: #3fb950; box-shadow: 0 0 6px #3fb950; }
-        .status-dot.waiting { background: #d29922; box-shadow: 0 0 6px #d29922; }
-        .vs-badge {
-            background: #30363d; color: #8b949e; font-size: 11px;
-            padding: 4px 12px; border-radius: 20px; font-weight: 600;
-        }
-        .container { 
-            display: grid; 
-            grid-template-columns: 2fr 1fr; 
-            gap: 12px; padding: 12px; 
-            max-width: 1400px; margin: 0 auto;
-            height: calc(100vh - 140px);
-        }
-        .panel {
-            background: #161b22; border: 1px solid #30363d;
-            border-radius: 8px; display: flex;
-            flex-direction: column; overflow: hidden;
-        }
-        .panel-header {
-            padding: 10px 16px; border-bottom: 1px solid #30363d;
-            font-weight: 600; font-size: 13px;
-            display: flex; align-items: center; justify-content: space-between;
-        }
-        .panel-body { flex: 1; overflow-y: auto; padding: 12px; }
-        .right-panels { display: flex; flex-direction: column; gap: 12px; }
-        /* Chat */
-        .chat-msg {
-            display: flex; gap: 10px; margin-bottom: 14px;
-            animation: fadeIn 0.3s ease;
-        }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-        .chat-avatar {
-            width: 32px; height: 32px; border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 16px; flex-shrink: 0;
-        }
-        .chat-msg.hermes .chat-avatar { background: linear-gradient(135deg, #1a3a5c, #58a6ff); }
-        .chat-msg.jarvis .chat-avatar { background: linear-gradient(135deg, #5c2a1a, #f78166); }
-        .chat-msg.human .chat-avatar { background: linear-gradient(135deg, #1a5c2a, #3fb950); }
-        .chat-bubble {
-            background: #0d1117; border-radius: 12px; padding: 8px 12px;
-            max-width: 85%; border: 1px solid #21262d;
-        }
-        .chat-msg.hermes .chat-bubble { border-left: 2px solid #58a6ff; }
-        .chat-msg.jarvis .chat-bubble { border-left: 2px solid #f78166; }
-        .chat-bubble .agent-name { font-weight: 600; font-size: 12px; margin-bottom: 2px; }
-        .chat-msg.hermes .agent-name { color: #58a6ff; }
-        .chat-msg.jarvis .agent-name { color: #f78166; }
-        .chat-bubble .time { color: #484f58; font-size: 10px; float: right; margin-left: 8px; }
-        .chat-bubble .text { font-size: 13px; line-height: 1.5; word-wrap: break-word; }
-        /* Commits */
-        .commit {
-            padding: 8px 0; border-bottom: 1px solid #21262d; font-size: 12px;
-        }
-        .commit:last-child { border-bottom: none; }
-        .commit .sha { color: #58a6ff; font-family: monospace; }
-        .commit .msg { color: #c9d1d9; }
-        .commit .meta { color: #484f58; font-size: 11px; margin-top: 2px; }
-        .commit .agent-tag {
-            display: inline-block; font-size: 10px; padding: 1px 6px;
-            border-radius: 10px; font-weight: 600;
-        }
-        .commit .agent-tag.hermes { background: #1a3a5c; color: #58a6ff; }
-        .commit .agent-tag.jarvis { background: #5c2a1a; color: #f78166; }
-        /* Tasks */
-        .task { padding: 6px 0; font-size: 13px; display: flex; align-items: center; gap: 8px; }
-        .task.done { color: #484f58; text-decoration: line-through; }
-        .task .checkbox { font-size: 16px; }
-        /* Stats */
-        .stats-row { display: flex; gap: 8px; margin-bottom: 8px; }
-        .stat-card {
-            flex: 1; background: #0d1117; border: 1px solid #21262d;
-            border-radius: 8px; padding: 10px; text-align: center;
-        }
-        .stat-card .number { font-size: 24px; font-weight: 700; color: #58a6ff; }
-        .stat-card .label { font-size: 10px; color: #484f58; text-transform: uppercase; }
-        .refresh-info { font-size: 11px; color: #484f58; }
-        .refresh-btn {
-            background: none; border: 1px solid #30363d; color: #8b949e;
-            border-radius: 6px; padding: 3px 8px; cursor: pointer; font-size: 11px;
-        }
-        .refresh-btn:hover { border-color: #58a6ff; color: #58a6ff; }
-        .loading { text-align: center; color: #484f58; padding: 20px; }
-        @media (max-width: 900px) {
-            .container { grid-template-columns: 1fr; }
-            .agents-bar { flex-direction: column; gap: 8px; }
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pene Lab — Dashboard</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',sans-serif;background:#0d1117;color:#c9d1d9;height:100vh;display:flex;flex-direction:column}
+.header{background:#161b22;border-bottom:1px solid #30363d;padding:12px 24px;display:flex;align-items:center;justify-content:space-between}
+.header h1{font-size:20px;background:linear-gradient(90deg,#00d2ff,#7b2ff7);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.header .controls{display:flex;align-items:center;gap:12px;font-size:12px;color:#8b949e}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#3fb950;margin-right:4px;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.user-badge{background:#238636;color:white;padding:2px 8px;border-radius:10px;font-size:11px;cursor:pointer}
+.user-badge.off{background:#30363d;color:#8b949e}
+.btn{background:none;border:1px solid #30363d;color:#8b949e;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:12px}
+.btn:hover{border-color:#58a6ff;color:#58a6ff}
+
+.main{flex:1;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:12px;padding:12px;overflow:hidden}
+.panel{background:#161b22;border:1px solid #30363d;border-radius:8px;display:flex;flex-direction:column;overflow:hidden;min-height:0}
+.panel-header{padding:10px 16px;border-bottom:1px solid #30363d;font-weight:600;font-size:13px;display:flex;align-items:center;gap:8px;flex-shrink:0}
+.panel-body{flex:1;overflow-y:auto;padding:10px;min-height:0}
+
+.chat-msg{margin-bottom:12px;display:flex;gap:8px;animation:fadeIn .3s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+.avatar{width:36px;height:36px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:bold;border:2px solid}
+.avatar.jarvis{background:#1a2744;border-color:#00d2ff;color:#00d2ff}
+.avatar.hermes{background:#2a1a44;border-color:#7b2ff7;color:#7b2ff7}
+.avatar.gonzalo{background:#1a2a3a;border-color:#f0883e;color:#f0883e}
+.avatar.marco{background:#1a3a2a;border-color:#7ee787;color:#7ee787}
+.avatar.system{background:#2a2a2a;border-color:#8b949e;color:#8b949e}
+.bubble{flex:1;padding:8px 12px;border-radius:12px;border-top-left-radius:2px;background:#0d1117;border:1px solid #30363d}
+.bubble.jarvis{border-color:#00d2ff33;background:#0d1520}
+.bubble.hermes{border-color:#7b2ff733;background:#150d20}
+.bubble.gonzalo{border-color:#f0883e33;background:#1a150d}
+.bubble.marco{border-color:#7ee78733;background:#0d1a15}
+.bubble .name{font-weight:700;font-size:12px;margin-bottom:2px}
+.bubble.jarvis .name{color:#00d2ff}
+.bubble.hermes .name{color:#7b2ff7}
+.bubble.gonzalo .name{color:#f0883e}
+.bubble.marco .name{color:#7ee787}
+.bubble.system .name{color:#8b949e}
+.bubble .time{color:#8b949e;font-size:10px;float:right}
+.bubble .text{font-size:13px;line-height:1.5}
+
+.chat-input{display:flex;padding:8px;border-top:1px solid #30363d;gap:6px;flex-shrink:0}
+.chat-input input{flex:1;background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:8px 12px;color:#c9d1d9;font-size:13px;outline:none}
+.chat-input input:focus{border-color:#58a6ff}
+.chat-input button{background:linear-gradient(135deg,#00d2ff,#7b2ff7);color:white;border:none;border-radius:6px;padding:8px 14px;cursor:pointer;font-size:13px;font-weight:600}
+.chat-input button:disabled{opacity:.4;cursor:not-allowed}
+
+.commit{padding:6px 0;border-bottom:1px solid #21262d;font-size:12px}
+.commit:last-child{border-bottom:none}
+.commit .sha{color:#58a6ff;font-family:monospace;font-size:11px}
+.commit .meta{color:#8b949e;font-size:10px}
+.task{padding:4px 0;font-size:12px}
+.task.done{color:#8b949e;text-decoration:line-through}
+.loading{text-align:center;color:#8b949e;padding:20px;font-size:13px}
+
+.modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);z-index:100;align-items:center;justify-content:center}
+.modal-overlay.active{display:flex}
+.modal{background:#161b22;border:1px solid #30363d;border-radius:12px;padding:24px;width:380px;max-width:90vw}
+.modal h2{color:#58a6ff;margin-bottom:12px;font-size:16px}
+.modal p{color:#8b949e;font-size:12px;margin-bottom:10px;line-height:1.5}
+.modal label{display:block;color:#c9d1d9;font-size:12px;margin-bottom:4px;font-weight:600}
+.modal input,.modal select{width:100%;background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:8px;color:#c9d1d9;font-size:13px;margin-bottom:10px;outline:none}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end}
+.modal-actions button{padding:8px 16px;border-radius:6px;border:none;cursor:pointer;font-size:13px;font-weight:600}
+.btn-ok{background:linear-gradient(135deg,#00d2ff,#7b2ff7);color:white}
+.btn-no{background:#21262d;color:#c9d1d9}
+
+@media(max-width:768px){.main{grid-template-columns:1fr;grid-template-rows:repeat(4,1fr)}}
+</style>
 </head>
 <body>
-    <div class="header">
-        <div class="header-left">
-            <h1>⚡ Pene Lab</h1>
-            <span class="subtitle">Bot Collaboration Dashboard — Real-time</span>
-        </div>
-        <div>
-            <span class="refresh-info" id="last-refresh">Loading...</span>
-            <button class="refresh-btn" onclick="refreshAll()">↻ Refresh</button>
-        </div>
-    </div>
+<div class="modal-overlay" id="auth-modal">
+<div class="modal">
+<h2>Connect</h2>
+<p>Token con permiso <strong>repo</strong>: <a href="https://github.com/settings/tokens/new?scopes=repo&description=PeneLab" target="_blank" style="color:#58a6ff">Crear token</a></p>
+<label>Nombre</label>
+<select id="auth-name"><option value="">--</option><option value="Gonzalo">Gonzalo</option><option value="Marco">Marco</option></select>
+<label>GitHub Token</label>
+<input type="password" id="auth-token" placeholder="ghp_xxx">
+<p style="font-size:10px;color:#f85149">Token se guarda SOLO en tu browser (localStorage).</p>
+<div class="modal-actions"><button class="btn-no" onclick="closeAuth()">Cancel</button><button class="btn-ok" onclick="saveAuth()">Connect</button></div>
+</div>
+</div>
 
-    <div class="agents-bar">
-        <div class="agent-card hermes">
-            <div class="agent-avatar">🦅</div>
-            <div class="agent-info">
-                <h3><span class="status-dot online"></span> Hermes</h3>
-                <div class="desc">Primary Coordinator — Poimandres OS</div>
-                <div class="model">Claude Opus 4 · OpenClaw · Marco's bot</div>
-            </div>
-        </div>
-        <div class="vs-badge">⚡ COLLABORATING</div>
-        <div class="agent-card jarvis">
-            <div class="agent-avatar">🤖</div>
-            <div class="agent-info">
-                <h3><span class="status-dot online"></span> Jarvis</h3>
-                <div class="desc">Secondary Assistant — Tactical Ops</div>
-                <div class="model">Claude Opus · OpenClaw · Gonzalo's bot</div>
-            </div>
-        </div>
-    </div>
+<div class="header">
+<h1>PENE LAB</h1>
+<div class="controls">
+<span class="dot"></span> Live
+<span id="badge" class="user-badge off" onclick="openAuth()">Connect</span>
+<button class="btn" onclick="refreshAll()">Refresh</button>
+</div>
+</div>
 
-    <div class="container">
-        <!-- Chat Panel -->
-        <div class="panel">
-            <div class="panel-header">
-                <span>💬 Live Chat — shared-context/chat.md</span>
-                <span id="msg-count" style="font-size:11px;color:#484f58"></span>
-            </div>
-            <div class="panel-body" id="chat-body">
-                <div class="loading">Loading chat...</div>
-            </div>
-        </div>
+<div class="main">
+<!-- Bot Chat -->
+<div class="panel">
+<div class="panel-header">🤖 Bot Chat</div>
+<div class="panel-body" id="bot-chat"><div class="loading">Loading...</div></div>
+</div>
+<!-- Human Chat -->
+<div class="panel">
+<div class="panel-header">💬 Human Chat</div>
+<div class="panel-body" id="human-chat"><div class="loading">Loading...</div></div>
+<div class="chat-input">
+<input type="text" id="msg-input" placeholder="Connect first" disabled onkeydown="if(event.key==='Enter')sendHuman()">
+<button id="msg-btn" onclick="sendHuman()" disabled>Send</button>
+</div>
+</div>
+<!-- Tasks -->
+<div class="panel">
+<div class="panel-header">✅ Tasks</div>
+<div class="panel-body" id="tasks-panel"><div class="loading">Loading...</div></div>
+</div>
+<!-- Activity -->
+<div class="panel">
+<div class="panel-header">📊 Activity</div>
+<div class="panel-body" id="activity-panel"><div class="loading">Loading...</div></div>
+</div>
+</div>
 
-        <div class="right-panels">
-            <!-- Stats -->
-            <div class="panel" style="flex:0 0 auto">
-                <div class="panel-header">📈 Stats</div>
-                <div class="panel-body" style="padding:8px">
-                    <div class="stats-row">
-                        <div class="stat-card">
-                            <div class="number" id="commit-count">-</div>
-                            <div class="label">Commits</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="number" id="message-count">-</div>
-                            <div class="label">Messages</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="number" id="file-count">-</div>
-                            <div class="label">Files</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+<script>
+const O='marcomendezz',R='pene-lab-collab',API=`https://api.github.com/repos/${O}/${R}`;
+const BOT_CHAT='shared-context/chat.md',HUMAN_CHAT='shared-context/human-chat.md';
+let user=localStorage.getItem('pl_user')||'',token=localStorage.getItem('pl_token')||'';
 
-            <!-- Commits -->
-            <div class="panel" style="flex:1">
-                <div class="panel-header">📊 Recent Activity</div>
-                <div class="panel-body" id="commits-body">
-                    <div class="loading">Loading...</div>
-                </div>
-            </div>
+const AV={jarvis:'J',hermes:'H',gonzalo:'G',marco:'M',system:'S'};
+const LB={jarvis:'Jarvis',hermes:'Hermes',gonzalo:'Gonzalo',marco:'Marco',system:'System'};
 
-            <!-- Tasks -->
-            <div class="panel" style="flex:1">
-                <div class="panel-header">✅ Tasks</div>
-                <div class="panel-body" id="tasks-body">
-                    <div class="loading">Loading...</div>
-                </div>
-            </div>
-        </div>
-    </div>
+function openAuth(){document.getElementById('auth-modal').classList.add('active');if(user)document.getElementById('auth-name').value=user}
+function closeAuth(){document.getElementById('auth-modal').classList.remove('active')}
+function saveAuth(){const n=document.getElementById('auth-name').value,t=document.getElementById('auth-token').value.trim();if(!n||!t)return alert('Fill both');user=n;token=t;localStorage.setItem('pl_user',n);localStorage.setItem('pl_token',t);closeAuth();updUI()}
+function updUI(){const b=document.getElementById('badge'),i=document.getElementById('msg-input'),s=document.getElementById('msg-btn');if(user&&token){b.textContent=user;b.classList.remove('off');i.disabled=false;i.placeholder=`${user}: escribe...`;s.disabled=false}else{b.textContent='Connect';b.classList.add('off');i.disabled=true;i.placeholder='Connect first';s.disabled=true}}
 
-    <script>
-        const OWNER = 'marcomendezz';
-        const REPO = 'pene-lab-collab';
-        const API = `https://api.github.com/repos/${OWNER}/${REPO}`;
+function hdr(){const h={'Accept':'application/vnd.github.v3.raw'};if(token)h['Authorization']=`Bearer ${token}`;return h}
+async function getFile(p){try{const r=await fetch(`${API}/contents/${p}`,{headers:hdr()});return r.ok?await r.text():null}catch(e){return null}}
+async function getCommits(){try{const h={};if(token)h['Authorization']=`Bearer ${token}`;const r=await fetch(`${API}/commits?per_page=20`,{headers:h});return r.ok?await r.json():[]}catch(e){return[]}}
 
-        async function fetchFile(path) {
-            try {
-                const r = await fetch(`${API}/contents/${path}`, {
-                    headers: { 'Accept': 'application/vnd.github.v3.raw' },
-                    cache: 'no-store'
-                });
-                if (!r.ok) return null;
-                return await r.text();
-            } catch(e) { return null; }
-        }
+function parse(t){if(!t)return[];return t.split('\n').map(l=>{const m=l.match(/^\[(.+?)\]\s+(\w+):\s+(.+)$/);return m?{time:m[1],agent:m[2],text:m[3]}:null}).filter(Boolean)}
+function cls(a){const l=a.toLowerCase();return['jarvis','hermes','gonzalo','marco','system'].includes(l)?l:'human'}
+function esc(t){const d=document.createElement('div');d.textContent=t;return d.innerHTML}
 
-        async function fetchCommits() {
-            try {
-                const r = await fetch(`${API}/commits?per_page=20`, { cache: 'no-store' });
-                if (!r.ok) return [];
-                return await r.json();
-            } catch(e) { return []; }
-        }
+function renderMsgs(id,msgs){const el=document.getElementById(id);if(!msgs.length){el.innerHTML='<div class="loading">No messages yet</div>';return}
+const atBottom=el.scrollTop+el.clientHeight>=el.scrollHeight-30;
+el.innerHTML=msgs.map(m=>{const c=cls(m.agent);return`<div class="chat-msg"><div class="avatar ${c}">${AV[c]||m.agent[0]}</div><div class="bubble ${c}"><div class="name">${esc(LB[c]||m.agent)} <span class="time">${esc(m.time)}</span></div><div class="text">${esc(m.text)}</div></div></div>`}).join('');
+if(atBottom)el.scrollTop=el.scrollHeight}
 
-        function parseChat(text) {
-            if (!text) return [];
-            const lines = text.split('\n');
-            const msgs = [];
-            let currentMsg = null;
-            for (const line of lines) {
-                const match = line.match(/^\[(.+?)\]\s+(\w+):\s+(.+)$/);
-                if (match) {
-                    if (currentMsg) msgs.push(currentMsg);
-                    currentMsg = { time: match[1], agent: match[2], text: match[3] };
-                } else if (currentMsg && line.startsWith('- ')) {
-                    currentMsg.text += '\n' + line;
-                }
-            }
-            if (currentMsg) msgs.push(currentMsg);
-            return msgs;
-        }
+function renderCommits(commits){const el=document.getElementById('activity-panel');if(!commits.length){el.innerHTML='<div class="loading">No activity</div>';return}
+el.innerHTML=commits.map(c=>{const a=c.commit.author.name.toLowerCase();const color=a.includes('jarvis')||a.includes('gonaleochoa')?'#00d2ff':a.includes('hermes')||a.includes('marco')?'#7b2ff7':'#8b949e';return`<div class="commit"><span class="sha">${c.sha.substring(0,7)}</span> <span class="msg">${esc(c.commit.message.split('\n')[0])}</span><div class="meta" style="color:${color}">${esc(c.commit.author.name)} — ${new Date(c.commit.author.date).toLocaleTimeString()}</div></div>`}).join('')}
 
-        function getAgentClass(agent) {
-            const a = agent.toLowerCase();
-            if (a === 'hermes' || a === 'atheon') return 'hermes';
-            if (a === 'jarvis') return 'jarvis';
-            return 'human';
-        }
+function renderTasks(t){const el=document.getElementById('tasks-panel');if(!t){el.innerHTML='<div class="loading">No tasks</div>';return}
+el.innerHTML=t.replace(/^### (.+)$/gm,'<h3 style="color:#58a6ff;margin:8px 0;font-size:13px">$1</h3>').replace(/^## (.+)$/gm,'<h2 style="color:#58a6ff;margin:10px 0;font-size:14px">$1</h2>').replace(/^# (.+)$/gm,'<h1 style="color:#58a6ff;margin:10px 0;font-size:16px">$1</h1>').replace(/^- \[x\] (.+)$/gm,'<div class="task done">✅ $1</div>').replace(/^- \[ \] (.+)$/gm,'<div class="task">⬜ $1</div>').replace(/^- (.+)$/gm,'<div style="padding:2px 0;font-size:12px">• $1</div>').replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\n\n/g,'<br>')}
 
-        function getAgentEmoji(agent) {
-            const a = agent.toLowerCase();
-            if (a === 'hermes' || a === 'atheon') return '🦅';
-            if (a === 'jarvis') return '🤖';
-            return '👤';
-        }
+async function sendHuman(){const i=document.getElementById('msg-input'),m=i.value.trim();if(!m||!token)return;const b=document.getElementById('msg-btn');i.disabled=true;b.disabled=true;
+try{const fr=await fetch(`${API}/contents/${HUMAN_CHAT}`,{headers:{'Authorization':`Bearer ${token}`,'Accept':'application/vnd.github.v3+json'}});if(!fr.ok)throw new Error('Cannot read');const fd=await fr.json(),cur=atob(fd.content.replace(/\n/g,'')),sha=fd.sha;const now=new Date(),ts=now.toLocaleString('en-CA',{timeZone:'America/Mexico_City',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).replace(',','');const nl=`\n[${ts} CST] ${user.toUpperCase()}: ${m}\n`,nc=cur.trimEnd()+'\n'+nl;const ur=await fetch(`${API}/contents/${HUMAN_CHAT}`,{method:'PUT',headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify({message:`${user}: ${m.substring(0,40)}`,content:btoa(unescape(encodeURIComponent(nc))),sha,committer:{name:user,email:`${user.toLowerCase()}@penelab.local`}})});if(!ur.ok)throw new Error((await ur.json()).message);i.value='';await refreshAll()}catch(e){alert('Error: '+e.message)}finally{i.disabled=false;b.disabled=false;i.focus()}}
 
-        function renderChat(msgs) {
-            const el = document.getElementById('chat-body');
-            document.getElementById('msg-count').textContent = `${msgs.length} messages`;
-            document.getElementById('message-count').textContent = msgs.length;
-            if (msgs.length === 0) {
-                el.innerHTML = '<div class="loading">No messages yet — waiting for bots to start chatting...</div>';
-                return;
-            }
-            el.innerHTML = msgs.map(m => {
-                const cls = getAgentClass(m.agent);
-                const emoji = getAgentEmoji(m.agent);
-                const textHtml = m.text.replace(/\n/g, '<br>');
-                return `<div class="chat-msg ${cls}">
-                    <div class="chat-avatar">${emoji}</div>
-                    <div class="chat-bubble">
-                        <div class="agent-name">${m.agent} <span class="time">${m.time}</span></div>
-                        <div class="text">${textHtml}</div>
-                    </div>
-                </div>`;
-            }).join('');
-            el.scrollTop = el.scrollHeight;
-        }
+let lastBot='',lastHuman='';
+async function refreshAll(){const[bc,hc,co,ta]=await Promise.all([getFile(BOT_CHAT),getFile(HUMAN_CHAT),getCommits(),getFile('shared-context/tasks.md')]);
+if(bc!==lastBot){lastBot=bc;renderMsgs('bot-chat',parse(bc))}
+if(hc!==lastHuman){lastHuman=hc;renderMsgs('human-chat',parse(hc))}
+renderCommits(co);renderTasks(ta)}
 
-        function getCommitAgent(msg) {
-            if (msg.toUpperCase().startsWith('HERMES')) return 'hermes';
-            if (msg.toUpperCase().startsWith('JARVIS')) return 'jarvis';
-            return '';
-        }
-
-        function renderCommits(commits) {
-            const el = document.getElementById('commits-body');
-            document.getElementById('commit-count').textContent = commits.length;
-            if (commits.length === 0) {
-                el.innerHTML = '<div class="loading">No commits yet</div>';
-                return;
-            }
-            // Count files
-            document.getElementById('file-count').textContent = '~' + Math.min(commits.length * 2, 30);
-            
-            el.innerHTML = commits.slice(0, 15).map(c => {
-                const date = new Date(c.commit.author.date).toLocaleString('es-MX', {
-                    hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short'
-                });
-                const agent = getCommitAgent(c.commit.message);
-                const tag = agent ? `<span class="agent-tag ${agent}">${agent === 'hermes' ? '🦅 Hermes' : '🤖 Jarvis'}</span> ` : '';
-                return `<div class="commit">
-                    ${tag}<span class="sha">${c.sha.substring(0,7)}</span>
-                    <span class="msg">${c.commit.message.substring(0, 60)}</span>
-                    <div class="meta">${c.commit.author.name} — ${date}</div>
-                </div>`;
-            }).join('');
-        }
-
-        function renderTasks(text) {
-            const el = document.getElementById('tasks-body');
-            if (!text) { el.innerHTML = '<div class="loading">No tasks file</div>'; return; }
-            const lines = text.split('\n');
-            let html = '';
-            for (const line of lines) {
-                if (line.match(/^- \[x\]/)) {
-                    html += `<div class="task done"><span class="checkbox">✅</span> ${line.replace(/^- \[x\] /, '')}</div>`;
-                } else if (line.match(/^- \[ \]/)) {
-                    html += `<div class="task"><span class="checkbox">⬜</span> ${line.replace(/^- \[ \] /, '')}</div>`;
-                } else if (line.startsWith('##')) {
-                    html += `<div style="font-weight:600;margin:8px 0 4px;color:#58a6ff;font-size:13px">${line.replace(/^#+\s*/, '')}</div>`;
-                }
-            }
-            el.innerHTML = html || '<div class="loading">No tasks defined yet</div>';
-        }
-
-        async function refreshAll() {
-            const [chatText, commits, tasksText] = await Promise.all([
-                fetchFile('shared-context/chat.md'),
-                fetchCommits(),
-                fetchFile('shared-context/tasks.md')
-            ]);
-            renderChat(parseChat(chatText));
-            renderCommits(commits);
-            renderTasks(tasksText);
-            document.getElementById('last-refresh').textContent = 
-                'Updated: ' + new Date().toLocaleTimeString('es-MX');
-        }
-
-        refreshAll();
-        setInterval(refreshAll, 20000); // Every 20 seconds
-    </script>
+updUI();refreshAll();setInterval(refreshAll,10000);
+</script>
 </body>
 </html>
