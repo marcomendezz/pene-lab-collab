@@ -21,10 +21,22 @@
             justify-content: space-between;
         }
         .header h1 { font-size: 20px; color: #58a6ff; }
-        .header .status { font-size: 12px; color: #8b949e; }
+        .header .status { font-size: 12px; color: #8b949e; display: flex; align-items: center; gap: 12px; }
         .header .status .dot { 
             display: inline-block; width: 8px; height: 8px; 
             border-radius: 50%; background: #3fb950; margin-right: 4px;
+        }
+        .user-badge {
+            background: #238636;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            cursor: pointer;
+        }
+        .user-badge.disconnected {
+            background: #30363d;
+            color: #8b949e;
         }
         .container { 
             display: grid; 
@@ -64,14 +76,20 @@
             border-radius: 8px;
             background: #0d1117;
             border-left: 3px solid #30363d;
+            animation: fadeIn 0.3s ease;
         }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
         .chat-msg.hermes { border-left-color: #58a6ff; }
         .chat-msg.jarvis { border-left-color: #f78166; }
         .chat-msg.human { border-left-color: #3fb950; }
+        .chat-msg.gonzalo { border-left-color: #d2a8ff; }
+        .chat-msg.marco { border-left-color: #7ee787; }
         .chat-msg .agent { font-weight: 600; font-size: 12px; margin-bottom: 4px; }
         .chat-msg.hermes .agent { color: #58a6ff; }
         .chat-msg.jarvis .agent { color: #f78166; }
         .chat-msg.human .agent { color: #3fb950; }
+        .chat-msg.gonzalo .agent { color: #d2a8ff; }
+        .chat-msg.marco .agent { color: #7ee787; }
         .chat-msg .time { color: #8b949e; font-size: 11px; float: right; }
         .chat-msg .text { font-size: 13px; line-height: 1.5; }
         /* Commits */
@@ -113,8 +131,11 @@
             padding: 8px 16px;
             cursor: pointer;
             font-size: 13px;
+            font-weight: 600;
+            transition: background 0.2s;
         }
-        .chat-input button:hover { background: #2ea043; }
+        .chat-input button:hover:not(:disabled) { background: #2ea043; }
+        .chat-input button:disabled { opacity: 0.5; cursor: not-allowed; }
         .refresh-btn {
             background: none;
             border: 1px solid #30363d;
@@ -126,17 +147,89 @@
         }
         .refresh-btn:hover { border-color: #58a6ff; color: #58a6ff; }
         .loading { text-align: center; color: #8b949e; padding: 20px; }
+        /* Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 12px;
+            padding: 24px;
+            width: 400px;
+            max-width: 90vw;
+        }
+        .modal h2 { color: #58a6ff; margin-bottom: 16px; font-size: 18px; }
+        .modal p { color: #8b949e; font-size: 13px; margin-bottom: 12px; line-height: 1.5; }
+        .modal label { display: block; color: #c9d1d9; font-size: 13px; margin-bottom: 4px; font-weight: 600; }
+        .modal input, .modal select {
+            width: 100%;
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 8px 12px;
+            color: #c9d1d9;
+            font-size: 13px;
+            margin-bottom: 12px;
+            outline: none;
+        }
+        .modal input:focus, .modal select:focus { border-color: #58a6ff; }
+        .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; }
+        .modal-actions button {
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        .btn-primary { background: #238636; color: white; }
+        .btn-primary:hover { background: #2ea043; }
+        .btn-secondary { background: #21262d; color: #c9d1d9; border: 1px solid #30363d !important; }
+        .btn-secondary:hover { border-color: #58a6ff !important; }
+        .sending-indicator { color: #58a6ff; font-size: 12px; display: none; padding: 4px 8px; }
+        .sending-indicator.active { display: block; }
         @media (max-width: 768px) {
             .container { grid-template-columns: 1fr; }
         }
     </style>
 </head>
 <body>
+    <!-- Auth Modal -->
+    <div class="modal-overlay" id="auth-modal">
+        <div class="modal">
+            <h2>🔐 Connect to Chat</h2>
+            <p>Para enviar mensajes necesitas un GitHub Personal Access Token con permiso <strong>repo</strong> (para escribir al chat.md via commits).</p>
+            <p>Crealo en: <a href="https://github.com/settings/tokens/new?scopes=repo&description=PeneLab+Dashboard" target="_blank" style="color:#58a6ff">github.com/settings/tokens</a></p>
+            <label>Tu nombre</label>
+            <select id="auth-name">
+                <option value="">-- Selecciona --</option>
+                <option value="Gonzalo">Gonzalo</option>
+                <option value="Marco">Marco</option>
+            </select>
+            <label>GitHub Token</label>
+            <input type="password" id="auth-token" placeholder="ghp_xxxxxxxxxxxx">
+            <p style="font-size:11px; color:#f85149;">⚠️ El token se guarda SOLO en tu browser (localStorage). Nunca se sube al repo.</p>
+            <div class="modal-actions">
+                <button class="btn-secondary" onclick="closeAuthModal()">Cancel</button>
+                <button class="btn-primary" onclick="saveAuth()">Connect</button>
+            </div>
+        </div>
+    </div>
+
     <div class="header">
-        <h1>🦅 Pene Lab — Bot Dashboard</h1>
+        <h1>🧪 Pene Lab — Bot Dashboard</h1>
         <div class="status">
-            <span class="dot"></span> Auto-refresh every 30s
-            <button class="refresh-btn" onclick="refreshAll()">↻ Refresh now</button>
+            <span class="dot"></span> Auto-refresh 30s
+            <span id="user-badge" class="user-badge disconnected" onclick="openAuthModal()">🔌 Connect</span>
+            <button class="refresh-btn" onclick="refreshAll()">↻ Refresh</button>
         </div>
     </div>
     <div class="container">
@@ -146,9 +239,11 @@
             <div class="panel-body" id="chat-body">
                 <div class="loading">Loading chat...</div>
             </div>
+            <div class="sending-indicator" id="sending">⏳ Sending...</div>
             <div class="chat-input">
-                <input type="text" id="chat-msg" placeholder="Chat as human (coming soon...)" disabled>
-                <button disabled>Send</button>
+                <input type="text" id="chat-msg" placeholder="Connect first (click 🔌 above)" disabled
+                       onkeydown="if(event.key==='Enter' && !event.shiftKey) sendMessage()">
+                <button id="send-btn" onclick="sendMessage()" disabled>Send</button>
             </div>
         </div>
         <!-- Commits Panel -->
@@ -177,13 +272,138 @@
     <script>
         const OWNER = 'marcomendezz';
         const REPO = 'pene-lab-collab';
+        const CHAT_PATH = 'shared-context/chat.md';
         const API = `https://api.github.com/repos/${OWNER}/${REPO}`;
+
+        // ========== AUTH ==========
+        let authUser = localStorage.getItem('penelab_user') || '';
+        let authToken = localStorage.getItem('penelab_token') || '';
+
+        function openAuthModal() {
+            document.getElementById('auth-modal').classList.add('active');
+            if (authUser) document.getElementById('auth-name').value = authUser;
+        }
+        function closeAuthModal() {
+            document.getElementById('auth-modal').classList.remove('active');
+        }
+        function saveAuth() {
+            const name = document.getElementById('auth-name').value;
+            const token = document.getElementById('auth-token').value.trim();
+            if (!name || !token) { alert('Llena ambos campos'); return; }
+            authUser = name;
+            authToken = token;
+            localStorage.setItem('penelab_user', name);
+            localStorage.setItem('penelab_token', token);
+            closeAuthModal();
+            updateAuthUI();
+        }
+        function updateAuthUI() {
+            const badge = document.getElementById('user-badge');
+            const input = document.getElementById('chat-msg');
+            const btn = document.getElementById('send-btn');
+            if (authUser && authToken) {
+                badge.textContent = `👤 ${authUser}`;
+                badge.classList.remove('disconnected');
+                input.disabled = false;
+                input.placeholder = `Message as ${authUser}...`;
+                btn.disabled = false;
+            } else {
+                badge.textContent = '🔌 Connect';
+                badge.classList.add('disconnected');
+                input.disabled = true;
+                input.placeholder = 'Connect first (click 🔌 above)';
+                btn.disabled = true;
+            }
+        }
+
+        // ========== CHAT SEND ==========
+        async function sendMessage() {
+            const input = document.getElementById('chat-msg');
+            const msg = input.value.trim();
+            if (!msg || !authToken || !authUser) return;
+
+            const sendBtn = document.getElementById('send-btn');
+            const indicator = document.getElementById('sending');
+            input.disabled = true;
+            sendBtn.disabled = true;
+            indicator.classList.add('active');
+
+            try {
+                // 1. Get current file content + SHA
+                const fileRes = await fetch(`${API}/contents/${CHAT_PATH}`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Accept': 'application/vnd.github.v3+json'
+                    }
+                });
+                if (!fileRes.ok) throw new Error('Could not read chat.md');
+                const fileData = await fileRes.json();
+                const currentContent = atob(fileData.content.replace(/\n/g, ''));
+                const sha = fileData.sha;
+
+                // 2. Build new message
+                const now = new Date();
+                const timestamp = now.toLocaleString('en-CA', {
+                    timeZone: 'America/Mexico_City',
+                    year: 'numeric', month: '2-digit', day: '2-digit',
+                    hour: '2-digit', minute: '2-digit', hour12: false
+                }).replace(',', '');
+                const newLine = `\n[${timestamp} CST] ${authUser.toUpperCase()}: ${msg}\n`;
+                const newContent = currentContent.trimEnd() + '\n' + newLine;
+
+                // 3. Commit the update
+                const updateRes = await fetch(`${API}/contents/${CHAT_PATH}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/vnd.github.v3+json'
+                    },
+                    body: JSON.stringify({
+                        message: `💬 ${authUser}: ${msg.substring(0, 50)}${msg.length > 50 ? '...' : ''}`,
+                        content: btoa(unescape(encodeURIComponent(newContent))),
+                        sha: sha,
+                        committer: {
+                            name: authUser,
+                            email: `${authUser.toLowerCase()}@penelab.local`
+                        }
+                    })
+                });
+
+                if (!updateRes.ok) {
+                    const err = await updateRes.json();
+                    throw new Error(err.message || 'Commit failed');
+                }
+
+                input.value = '';
+                // Refresh chat
+                await refreshAll();
+            } catch(e) {
+                alert(`Error: ${e.message}\n\nRevisa que tu token tenga permiso 'repo'.`);
+                // If token invalid, clear it
+                if (e.message.includes('401') || e.message.includes('Bad credentials')) {
+                    localStorage.removeItem('penelab_token');
+                    authToken = '';
+                    updateAuthUI();
+                }
+            } finally {
+                input.disabled = false;
+                sendBtn.disabled = false;
+                indicator.classList.remove('active');
+                input.focus();
+            }
+        }
+
+        // ========== DATA FETCHING ==========
+        function getHeaders() {
+            const h = { 'Accept': 'application/vnd.github.v3.raw' };
+            if (authToken) h['Authorization'] = `Bearer ${authToken}`;
+            return h;
+        }
 
         async function fetchFile(path) {
             try {
-                const r = await fetch(`${API}/contents/${path}`, {
-                    headers: { 'Accept': 'application/vnd.github.v3.raw' }
-                });
+                const r = await fetch(`${API}/contents/${path}`, { headers: getHeaders() });
                 if (!r.ok) return null;
                 return await r.text();
             } catch(e) { return null; }
@@ -191,7 +411,9 @@
 
         async function fetchCommits() {
             try {
-                const r = await fetch(`${API}/commits?per_page=15`);
+                const h = {};
+                if (authToken) h['Authorization'] = `Bearer ${authToken}`;
+                const r = await fetch(`${API}/commits?per_page=15`, { headers: h });
                 if (!r.ok) return [];
                 return await r.json();
             } catch(e) { return []; }
@@ -210,6 +432,21 @@
             return msgs;
         }
 
+        function getAgentClass(agent) {
+            const a = agent.toLowerCase();
+            if (a === 'hermes') return 'hermes';
+            if (a === 'jarvis') return 'jarvis';
+            if (a === 'gonzalo') return 'gonzalo';
+            if (a === 'marco') return 'marco';
+            return 'human';
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
         function renderChat(msgs) {
             const el = document.getElementById('chat-body');
             if (msgs.length === 0) {
@@ -217,11 +454,10 @@
                 return;
             }
             el.innerHTML = msgs.map(m => {
-                const cls = m.agent.toLowerCase() === 'hermes' ? 'hermes' : 
-                           m.agent.toLowerCase() === 'jarvis' ? 'jarvis' : 'human';
+                const cls = getAgentClass(m.agent);
                 return `<div class="chat-msg ${cls}">
-                    <div class="agent">${m.agent} <span class="time">${m.time}</span></div>
-                    <div class="text">${m.text}</div>
+                    <div class="agent">${escapeHtml(m.agent)} <span class="time">${escapeHtml(m.time)}</span></div>
+                    <div class="text">${escapeHtml(m.text)}</div>
                 </div>`;
             }).join('');
             el.scrollTop = el.scrollHeight;
@@ -237,8 +473,8 @@
                 const date = new Date(c.commit.author.date).toLocaleString();
                 return `<div class="commit">
                     <span class="sha">${c.sha.substring(0,7)}</span>
-                    <span class="msg">${c.commit.message}</span>
-                    <div class="meta">${c.commit.author.name} — ${date}</div>
+                    <span class="msg">${escapeHtml(c.commit.message)}</span>
+                    <div class="meta">${escapeHtml(c.commit.author.name)} — ${date}</div>
                 </div>`;
             }).join('');
         }
@@ -249,7 +485,6 @@
                 el.innerHTML = '<div class="loading">File not found</div>';
                 return;
             }
-            // Simple markdown rendering
             const html = text
                 .replace(/^### (.+)$/gm, '<h3 style="color:#58a6ff;margin:8px 0">$1</h3>')
                 .replace(/^## (.+)$/gm, '<h2 style="color:#58a6ff;margin:12px 0;font-size:16px">$1</h2>')
@@ -275,9 +510,9 @@
             renderMarkdown(statusText, 'status-body');
         }
 
-        // Initial load
+        // Init
+        updateAuthUI();
         refreshAll();
-        // Auto-refresh every 30 seconds
         setInterval(refreshAll, 30000);
     </script>
 </body>
