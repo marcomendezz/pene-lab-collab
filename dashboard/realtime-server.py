@@ -26,11 +26,44 @@ HUMAN_CHAT = REPO / "shared-context" / "human-chat.md"
 GIT = r"C:\Program Files\Git\cmd\git.exe"
 WS_PORT = 4011
 HTTP_PORT = 4010
+BIND_HOST = '127.0.0.1'  # Localhost only — use Cloudflare tunnel for external access
+ALLOWED_NAMES = {'marco', 'gonzalo', 'jarvis', 'hermes', 'system'}
+MAX_MSG_LEN = 2000
+RATE_LIMIT_MSGS = 10  # max messages per window
+RATE_LIMIT_WINDOW = 60  # seconds
+ALLOWED_ORIGINS = {'http://localhost:4010', 'https://marcomendezz.github.io'}
 
 # Connected WebSocket clients
 clients = set()
 messages_bot = []
 messages_human = []
+
+# Rate limiting: {client_id: [timestamps]}
+import time
+rate_limits = {}
+
+def check_rate_limit(client_id):
+    now = time.time()
+    if client_id not in rate_limits:
+        rate_limits[client_id] = []
+    # Clean old entries
+    rate_limits[client_id] = [t for t in rate_limits[client_id] if now - t < RATE_LIMIT_WINDOW]
+    if len(rate_limits[client_id]) >= RATE_LIMIT_MSGS:
+        return False
+    rate_limits[client_id].append(now)
+    return True
+
+def sanitize_name(name):
+    """Only allow known names, strip anything weird"""
+    import re
+    clean = re.sub(r'[^a-zA-Z0-9_]', '', str(name)[:20]).lower()
+    return clean if clean in ALLOWED_NAMES else None
+
+def sanitize_text(text):
+    """Strip control characters, limit length"""
+    import re
+    clean = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f]', '', str(text))
+    return clean[:MAX_MSG_LEN]
 
 def load_messages():
     global messages_bot, messages_human
@@ -59,6 +92,13 @@ def save_message(channel, name, text):
     return {'time': ts, 'agent': name.upper(), 'text': text}
 
 async def ws_handler(websocket):
+    # Origin check
+    origin = websocket.request.headers.get('Origin', '') if hasattr(websocket, 'request') else ''
+    if origin and origin not in ALLOWED_ORIGINS:
+        await websocket.close(4003, 'Origin not allowed')
+        return
+    
+    client_id = id(websocket)
     clients.add(websocket)
     try:
         # Send current state
@@ -69,20 +109,38 @@ async def ws_handler(websocket):
             'human': messages_human[-50:]
         }))
         async for raw in websocket:
-            data = json.loads(raw)
+            # Rate limit
+            if not check_rate_limit(client_id):
+                await websocket.send(json.dumps({'type': 'error', 'msg': 'Rate limited. Slow down.'}))
+                continue
+            
+            try:
+                data = json.loads(raw)
+            except json.JSONDecodeError:
+                continue
+            
             if data.get('type') == 'message':
                 channel = data.get('channel', 'human')
-                name = data.get('name', 'Anon')
-                text = data.get('text', '')
-                if text:
-                    msg = save_message(channel, name, text)
-                    # Broadcast to all clients
-                    broadcast = json.dumps({'type': 'message', 'channel': channel, 'msg': msg})
-                    await asyncio.gather(*[c.send(broadcast) for c in clients if c.open])
+                if channel not in ('human', 'bot'):
+                    continue
+                
+                name = sanitize_name(data.get('name', ''))
+                if not name:
+                    await websocket.send(json.dumps({'type': 'error', 'msg': 'Invalid name'}))
+                    continue
+                
+                text = sanitize_text(data.get('text', ''))
+                if not text.strip():
+                    continue
+                
+                msg = save_message(channel, name, text)
+                broadcast = json.dumps({'type': 'message', 'channel': channel, 'msg': msg})
+                await asyncio.gather(*[c.send(broadcast) for c in clients if c.open])
     except:
         pass
     finally:
         clients.discard(websocket)
+        rate_limits.pop(client_id, None)
 
 # Git poll — pull every 3 seconds and broadcast changes
 async def git_poller():
@@ -235,7 +293,7 @@ class HTTPHandler(http.server.SimpleHTTPRequestHandler):
     def log_message(self, *args): pass
 
 def run_http():
-    server = http.server.HTTPServer(('0.0.0.0', HTTP_PORT), HTTPHandler)
+    server = http.server.HTTPServer((BIND_HOST, HTTP_PORT), HTTPHandler)
     print(f"HTTP server on http://localhost:{HTTP_PORT}")
     server.serve_forever()
 
@@ -245,7 +303,7 @@ async def main():
     
     if HAS_WS:
         print(f"WebSocket server on ws://localhost:{WS_PORT}")
-        async with websockets.serve(ws_handler, '0.0.0.0', WS_PORT):
+        async with websockets.serve(ws_handler, BIND_HOST, WS_PORT):
             await git_poller()
     else:
         print("websockets not installed. Run: pip install websockets")

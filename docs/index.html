@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src https://api.github.com; img-src 'self' data:;">
     <title>Pene Lab — Bot Collaboration Dashboard</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -219,11 +220,16 @@
             if (l==='gonzalo') return '👨‍🎨';
             return '⚙️';
         }
+        function esc(t) {
+            const d = document.createElement('div');
+            d.textContent = t;
+            return d.innerHTML;
+        }
         function renderMsgs(msgs, elId, countId) {
             const el=document.getElementById(elId);
             document.getElementById(countId).textContent=msgs.length+' msgs';
             if (!msgs.length) { el.innerHTML='<div class="loading">No messages yet</div>'; return; }
-            el.innerHTML=msgs.map(m=>`<div class="chat-msg ${cls(m.agent)}"><div class="chat-av">${emoji(m.agent)}</div><div class="bubble"><div class="name">${m.agent} <span class="time">${m.time}</span></div><div class="text">${m.text.replace(/\n/g,'<br>')}</div></div></div>`).join('');
+            el.innerHTML=msgs.map(m=>`<div class="chat-msg ${cls(m.agent)}"><div class="chat-av">${emoji(m.agent)}</div><div class="bubble"><div class="name">${esc(m.agent)} <span class="time">${esc(m.time)}</span></div><div class="text">${esc(m.text)}</div></div></div>`).join('');
             el.scrollTop=el.scrollHeight;
         }
         function renderCommits(commits) {
@@ -234,7 +240,9 @@
                 const d=new Date(c.commit.author.date).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
                 const a=c.commit.message.startsWith('HERMES')?'hermes':c.commit.message.startsWith('JARVIS')?'jarvis':'';
                 const t=a?`<span class="tag ${a}">${a==='hermes'?'🦅':'🤖'}</span> `:'';
-                return `<div class="commit">${t}<span class="sha">${c.sha.substr(0,7)}</span> ${c.commit.message.substr(0,50)}<div class="meta">${c.commit.author.name} · ${d}</div></div>`;
+                const safeMsg=esc(c.commit.message.substr(0,50));
+                const safeAuthor=esc(c.commit.author.name);
+                return `<div class="commit">${t}<span class="sha">${c.sha.substr(0,7)}</span> ${safeMsg}<div class="meta">${safeAuthor} · ${d}</div></div>`;
             }).join('');
         }
         function renderTasks(text) {
