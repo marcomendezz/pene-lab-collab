@@ -3,171 +3,274 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src https://api.github.com; img-src 'self' data:;">
-    <title>Pene Lab — Bot Collaboration Dashboard</title>
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src https://api.github.com; img-src 'self' data:; font-src 'self';">
+    <title>Pene Lab — Command Center</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', sans-serif; background: #0d1117; color: #c9d1d9; min-height: 100vh; }
-        .header {
-            background: linear-gradient(135deg, #161b22 0%, #1a1f2e 100%);
-            border-bottom: 1px solid #30363d; padding: 12px 24px;
-            display: flex; align-items: center; justify-content: space-between;
+        :root {
+            --bg-0: #0a0e14; --bg-1: #11151c; --bg-2: #1a1f2e; --bg-3: #232a3b;
+            --border: #2a3144; --text: #c8cfd8; --text-dim: #6b7688; --text-bright: #e8edf4;
+            --hermes: #8b5cf6; --hermes-bg: #8b5cf620; --hermes-glow: #8b5cf640;
+            --jarvis: #06b6d4; --jarvis-bg: #06b6d420; --jarvis-glow: #06b6d440;
+            --marco: #10b981; --marco-bg: #10b98120;
+            --gonzalo: #f59e0b; --gonzalo-bg: #f59e0b20;
+            --success: #10b981; --warning: #f59e0b; --danger: #ef4444;
+            --accent: linear-gradient(135deg, #8b5cf6, #06b6d4);
         }
-        .header h1 { font-size: 20px; color: #58a6ff; }
-        .header .subtitle { font-size: 11px; color: #8b949e; }
-        .agents-bar {
-            display: flex; gap: 16px; align-items: center;
-            background: #161b22; border-bottom: 1px solid #30363d; padding: 10px 24px;
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family: -apple-system, 'Segoe UI', sans-serif; background: var(--bg-0); color: var(--text); min-height: 100vh; overflow-x: hidden; }
+        
+        /* Top bar */
+        .topbar {
+            background: var(--bg-1); border-bottom: 1px solid var(--border);
+            padding: 14px 28px; display: flex; align-items: center; justify-content: space-between;
+            position: sticky; top: 0; z-index: 10; backdrop-filter: blur(12px);
         }
-        .agent-card {
+        .topbar-left { display: flex; align-items: center; gap: 14px; }
+        .logo { font-size: 22px; font-weight: 800; background: var(--accent); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: -0.5px; }
+        .topbar-badge { font-size: 10px; background: var(--bg-3); color: var(--text-dim); padding: 3px 10px; border-radius: 20px; border: 1px solid var(--border); }
+        .topbar-right { display: flex; align-items: center; gap: 12px; }
+        .topbar-time { font-size: 11px; color: var(--text-dim); font-family: 'SF Mono', 'Cascadia Code', monospace; }
+        .btn-refresh { background: var(--bg-3); border: 1px solid var(--border); color: var(--text-dim); padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: 11px; transition: all .15s; }
+        .btn-refresh:hover { border-color: #8b5cf6; color: #8b5cf6; }
+        
+        /* Agent strip */
+        .agents-strip {
+            display: flex; gap: 12px; padding: 14px 28px; background: var(--bg-1);
+            border-bottom: 1px solid var(--border); overflow-x: auto;
+        }
+        .agent-chip {
             display: flex; align-items: center; gap: 10px;
-            background: #0d1117; border: 1px solid #30363d;
-            border-radius: 10px; padding: 8px 14px; flex: 1;
+            background: var(--bg-0); border: 1px solid var(--border);
+            border-radius: 12px; padding: 10px 16px; min-width: 200px; flex-shrink: 0;
+            transition: all .2s;
         }
-        .agent-card.hermes { border-left: 3px solid #58a6ff; }
-        .agent-card.jarvis { border-left: 3px solid #f78166; }
-        .agent-card.marco { border-left: 3px solid #3fb950; }
-        .agent-card.gonzalo { border-left: 3px solid #d2a8ff; }
-        .agent-avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
-        .agent-card.hermes .agent-avatar { background: linear-gradient(135deg, #1a3a5c, #58a6ff); }
-        .agent-card.jarvis .agent-avatar { background: linear-gradient(135deg, #5c2a1a, #f78166); }
-        .agent-card.marco .agent-avatar { background: linear-gradient(135deg, #1a5c2a, #3fb950); }
-        .agent-card.gonzalo .agent-avatar { background: linear-gradient(135deg, #3a1a5c, #d2a8ff); }
-        .agent-info h3 { font-size: 13px; font-weight: 600; }
-        .agent-card.hermes h3 { color: #58a6ff; }
-        .agent-card.jarvis h3 { color: #f78166; }
-        .agent-card.marco h3 { color: #3fb950; }
-        .agent-card.gonzalo h3 { color: #d2a8ff; }
-        .agent-info .desc { font-size: 10px; color: #8b949e; }
-        .dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; margin-right: 3px; background: #3fb950; box-shadow: 0 0 4px #3fb950; }
-        .container { display: grid; grid-template-columns: 1fr 1fr 300px; gap: 10px; padding: 10px; max-width: 1500px; margin: 0 auto; height: calc(100vh - 120px); }
-        .panel { background: #161b22; border: 1px solid #30363d; border-radius: 8px; display: flex; flex-direction: column; overflow: hidden; }
-        .panel-header { padding: 10px 14px; border-bottom: 1px solid #30363d; font-weight: 600; font-size: 13px; display: flex; align-items: center; justify-content: space-between; }
-        .panel-header .badge { font-size: 10px; background: #30363d; padding: 2px 8px; border-radius: 10px; color: #8b949e; }
-        .panel-body { flex: 1; overflow-y: auto; padding: 10px; }
+        .agent-chip:hover { border-color: var(--border); transform: translateY(-1px); }
+        .agent-chip.hermes:hover { border-color: var(--hermes); box-shadow: 0 4px 20px var(--hermes-glow); }
+        .agent-chip.jarvis:hover { border-color: var(--jarvis); box-shadow: 0 4px 20px var(--jarvis-glow); }
+        .av-circle {
+            width: 38px; height: 38px; border-radius: 50%; display: flex;
+            align-items: center; justify-content: center; font-size: 18px;
+            flex-shrink: 0; position: relative;
+        }
+        .hermes .av-circle { background: var(--hermes-bg); border: 2px solid var(--hermes); }
+        .jarvis .av-circle { background: var(--jarvis-bg); border: 2px solid var(--jarvis); }
+        .marco .av-circle { background: var(--marco-bg); border: 2px solid var(--marco); }
+        .gonzalo .av-circle { background: var(--gonzalo-bg); border: 2px solid var(--gonzalo); }
+        .status-dot {
+            position: absolute; bottom: 0; right: 0; width: 10px; height: 10px;
+            border-radius: 50%; border: 2px solid var(--bg-0);
+        }
+        .status-dot.online { background: var(--success); box-shadow: 0 0 6px var(--success); }
+        .status-dot.offline { background: var(--text-dim); }
+        .agent-meta h3 { font-size: 13px; font-weight: 700; }
+        .hermes .agent-meta h3 { color: var(--hermes); }
+        .jarvis .agent-meta h3 { color: var(--jarvis); }
+        .marco .agent-meta h3 { color: var(--marco); }
+        .gonzalo .agent-meta h3 { color: var(--gonzalo); }
+        .agent-meta .role { font-size: 10px; color: var(--text-dim); }
+        .agent-meta .model { font-size: 9px; color: var(--text-dim); font-family: monospace; margin-top: 1px; }
+        
+        /* Main grid */
+        .main { display: grid; grid-template-columns: 1fr 1fr 320px; gap: 0; height: calc(100vh - 130px); }
+        
+        /* Panels */
+        .panel { display: flex; flex-direction: column; border-right: 1px solid var(--border); overflow: hidden; }
+        .panel:last-child { border-right: none; }
+        .panel-head {
+            padding: 12px 18px; background: var(--bg-1); border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+        }
+        .panel-title { font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+        .panel-badge { font-size: 10px; background: var(--bg-3); padding: 2px 8px; border-radius: 10px; color: var(--text-dim); }
+        .panel-body { flex: 1; overflow-y: auto; padding: 14px; }
+        .panel-body::-webkit-scrollbar { width: 4px; }
+        .panel-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+        
         /* Chat messages */
-        .chat-msg { display: flex; gap: 8px; margin-bottom: 12px; animation: fadeIn 0.3s ease; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
-        .chat-av { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
-        .chat-msg.hermes .chat-av { background: linear-gradient(135deg, #1a3a5c, #58a6ff); }
-        .chat-msg.jarvis .chat-av { background: linear-gradient(135deg, #5c2a1a, #f78166); }
-        .chat-msg.marco .chat-av { background: linear-gradient(135deg, #1a5c2a, #3fb950); }
-        .chat-msg.gonzalo .chat-av { background: linear-gradient(135deg, #3a1a5c, #d2a8ff); }
-        .chat-msg.system .chat-av { background: #30363d; }
-        .bubble { background: #0d1117; border-radius: 10px; padding: 6px 10px; max-width: 90%; border: 1px solid #21262d; }
-        .chat-msg.hermes .bubble { border-left: 2px solid #58a6ff; }
-        .chat-msg.jarvis .bubble { border-left: 2px solid #f78166; }
-        .chat-msg.marco .bubble { border-left: 2px solid #3fb950; }
-        .chat-msg.gonzalo .bubble { border-left: 2px solid #d2a8ff; }
-        .bubble .name { font-weight: 600; font-size: 11px; }
-        .chat-msg.hermes .name { color: #58a6ff; }
-        .chat-msg.jarvis .name { color: #f78166; }
-        .chat-msg.marco .name { color: #3fb950; }
-        .chat-msg.gonzalo .name { color: #d2a8ff; }
-        .bubble .time { color: #484f58; font-size: 9px; float: right; margin-left: 8px; }
-        .bubble .text { font-size: 12px; line-height: 1.4; word-wrap: break-word; }
+        .msg { display: flex; gap: 10px; margin-bottom: 14px; animation: slideUp .25s ease; }
+        @keyframes slideUp { from { opacity:0; transform: translateY(8px); } to { opacity:1; transform: translateY(0); } }
+        .msg-av { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; }
+        .msg.hermes .msg-av { background: var(--hermes-bg); border: 1.5px solid var(--hermes); }
+        .msg.jarvis .msg-av { background: var(--jarvis-bg); border: 1.5px solid var(--jarvis); }
+        .msg.marco .msg-av { background: var(--marco-bg); border: 1.5px solid var(--marco); }
+        .msg.gonzalo .msg-av { background: var(--gonzalo-bg); border: 1.5px solid var(--gonzalo); }
+        .msg.system .msg-av { background: var(--bg-3); border: 1.5px solid var(--border); }
+        .msg-bubble { flex: 1; background: var(--bg-2); border-radius: 10px; padding: 8px 12px; border: 1px solid var(--border); }
+        .msg.hermes .msg-bubble { border-left: 2px solid var(--hermes); }
+        .msg.jarvis .msg-bubble { border-left: 2px solid var(--jarvis); }
+        .msg.marco .msg-bubble { border-left: 2px solid var(--marco); }
+        .msg.gonzalo .msg-bubble { border-left: 2px solid var(--gonzalo); }
+        .msg-name { font-size: 11px; font-weight: 700; margin-bottom: 2px; }
+        .msg.hermes .msg-name { color: var(--hermes); }
+        .msg.jarvis .msg-name { color: var(--jarvis); }
+        .msg.marco .msg-name { color: var(--marco); }
+        .msg.gonzalo .msg-name { color: var(--gonzalo); }
+        .msg-time { font-size: 9px; color: var(--text-dim); float: right; }
+        .msg-text { font-size: 12px; line-height: 1.5; color: var(--text); word-break: break-word; }
+        
         /* Chat input */
-        .chat-input { display: flex; padding: 8px; border-top: 1px solid #30363d; gap: 6px; }
-        .chat-input select { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 6px; color: #c9d1d9; font-size: 12px; }
-        .chat-input input { flex: 1; background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 6px 10px; color: #c9d1d9; font-size: 12px; outline: none; }
-        .chat-input input:focus { border-color: #58a6ff; }
-        .chat-input button { background: #238636; color: white; border: none; border-radius: 6px; padding: 6px 14px; cursor: pointer; font-size: 12px; }
-        .chat-input button:hover { background: #2ea043; }
-        .chat-input button:disabled { background: #21262d; color: #484f58; cursor: not-allowed; }
-        /* Right panel */
-        .right-col { display: flex; flex-direction: column; gap: 10px; }
-        .commit { padding: 6px 0; border-bottom: 1px solid #21262d; font-size: 11px; }
-        .commit:last-child { border-bottom: none; }
-        .commit .sha { color: #58a6ff; font-family: monospace; }
-        .commit .meta { color: #484f58; font-size: 10px; }
-        .tag { display: inline-block; font-size: 9px; padding: 1px 5px; border-radius: 8px; font-weight: 600; }
-        .tag.hermes { background: #1a3a5c; color: #58a6ff; }
-        .tag.jarvis { background: #5c2a1a; color: #f78166; }
-        .task { padding: 4px 0; font-size: 12px; }
-        .task.done { color: #484f58; text-decoration: line-through; }
-        .stats-row { display: flex; gap: 6px; padding: 6px; }
-        .stat { flex: 1; background: #0d1117; border: 1px solid #21262d; border-radius: 6px; padding: 8px; text-align: center; }
-        .stat .num { font-size: 20px; font-weight: 700; color: #58a6ff; }
-        .stat .lbl { font-size: 9px; color: #484f58; text-transform: uppercase; }
-        .refresh-btn { background: none; border: 1px solid #30363d; color: #8b949e; border-radius: 6px; padding: 2px 6px; cursor: pointer; font-size: 10px; }
-        .token-setup { background: #161b22; border: 1px solid #d29922; border-radius: 8px; padding: 12px; margin: 8px; font-size: 12px; }
-        .token-setup input { width: 100%; background: #0d1117; border: 1px solid #30363d; border-radius: 4px; padding: 6px; color: #c9d1d9; margin: 6px 0; font-size: 11px; }
-        .token-setup button { background: #238636; color: white; border: none; border-radius: 4px; padding: 4px 10px; cursor: pointer; font-size: 11px; }
-        .loading { text-align: center; color: #484f58; padding: 16px; font-size: 12px; }
-        @media (max-width: 1000px) { .container { grid-template-columns: 1fr; } .agents-bar { flex-wrap: wrap; } }
+        .chat-input-bar { display: flex; padding: 10px 14px; border-top: 1px solid var(--border); gap: 8px; background: var(--bg-1); flex-shrink: 0; }
+        .chat-input-bar select { background: var(--bg-0); border: 1px solid var(--border); border-radius: 8px; padding: 8px; color: var(--text); font-size: 12px; }
+        .chat-input-bar input { flex: 1; background: var(--bg-0); border: 1px solid var(--border); border-radius: 8px; padding: 8px 14px; color: var(--text); font-size: 12px; outline: none; transition: border .15s; }
+        .chat-input-bar input:focus { border-color: var(--hermes); }
+        .chat-input-bar button { background: var(--accent); color: white; border: none; border-radius: 8px; padding: 8px 18px; cursor: pointer; font-size: 12px; font-weight: 600; }
+        .chat-input-bar button:disabled { opacity: 0.4; cursor: not-allowed; }
+        
+        /* Token setup */
+        .token-box { background: var(--bg-2); border: 1px solid var(--warning); border-radius: 8px; padding: 12px; margin: 8px 14px; font-size: 11px; }
+        .token-box input { width: 100%; background: var(--bg-0); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; color: var(--text); margin: 6px 0; font-size: 11px; }
+        .token-box button { background: var(--success); color: white; border: none; border-radius: 6px; padding: 5px 12px; cursor: pointer; font-size: 11px; }
+        
+        /* Right sidebar */
+        .sidebar { display: flex; flex-direction: column; gap: 0; overflow: hidden; }
+        .sidebar .panel { border-right: none; border-bottom: 1px solid var(--border); }
+        .sidebar .panel:last-child { border-bottom: none; flex: 1; }
+        
+        /* Stats */
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 12px; }
+        .stat-card { background: var(--bg-0); border: 1px solid var(--border); border-radius: 8px; padding: 12px; text-align: center; }
+        .stat-num { font-size: 24px; font-weight: 800; background: var(--accent); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .stat-label { font-size: 9px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+        
+        /* Commits */
+        .commit-item { padding: 8px 0; border-bottom: 1px solid var(--border)10; font-size: 11px; }
+        .commit-item:last-child { border-bottom: none; }
+        .commit-sha { color: var(--hermes); font-family: monospace; font-size: 10px; }
+        .commit-msg { color: var(--text); margin-top: 2px; }
+        .commit-meta { color: var(--text-dim); font-size: 10px; margin-top: 2px; }
+        .commit-tag { display: inline-block; font-size: 9px; padding: 1px 6px; border-radius: 6px; font-weight: 600; margin-right: 4px; }
+        .commit-tag.hermes { background: var(--hermes-bg); color: var(--hermes); }
+        .commit-tag.jarvis { background: var(--jarvis-bg); color: var(--jarvis); }
+        
+        /* Tasks */
+        .task-item { padding: 6px 0; font-size: 12px; display: flex; align-items: flex-start; gap: 6px; }
+        .task-item.done { color: var(--text-dim); }
+        .task-item.done .task-text { text-decoration: line-through; }
+        .task-check { flex-shrink: 0; margin-top: 2px; }
+        .task-section { font-weight: 700; font-size: 12px; color: var(--hermes); margin: 10px 0 4px; }
+        .task-section:first-child { margin-top: 0; }
+        
+        /* Nav links */
+        .nav-link { color: var(--hermes); text-decoration: none; font-size: 11px; padding: 3px 8px; border: 1px solid var(--border); border-radius: 6px; transition: all .15s; }
+        .nav-link:hover { border-color: var(--hermes); background: var(--hermes-bg); }
+        
+        /* Responsive */
+        @media (max-width: 1100px) { .main { grid-template-columns: 1fr 1fr; } .sidebar { display: none; } }
+        @media (max-width: 700px) { .main { grid-template-columns: 1fr; } .agents-strip { flex-wrap: wrap; } }
     </style>
 </head>
 <body>
-    <div class="header">
-        <div><h1>⚡ Pene Lab</h1><span class="subtitle">4-way collaboration — Bots + Humans</span></div>
-        <div><span id="refresh-time" style="font-size:10px;color:#484f58"></span> <button class="refresh-btn" onclick="refreshAll()">↻</button></div>
+    <div class="topbar">
+        <div class="topbar-left">
+            <span class="logo">⚡ PENE LAB</span>
+            <span class="topbar-badge">Command Center v3</span>
+            <a href="canvas.html" class="nav-link">📊 Canvas</a>
+        </div>
+        <div class="topbar-right">
+            <span class="topbar-time" id="clock"></span>
+            <button class="btn-refresh" onclick="refreshAll()">↻ Refresh</button>
+        </div>
     </div>
-    <div class="agents-bar">
-        <div class="agent-card hermes"><div class="agent-avatar">🦅</div><div class="agent-info"><h3><span class="dot"></span>Hermes</h3><div class="desc">Coordinator · Claude Opus 4 · Marco</div></div></div>
-        <div class="agent-card jarvis"><div class="agent-avatar">🤖</div><div class="agent-info"><h3><span class="dot"></span>Jarvis</h3><div class="desc">Tactical Ops · Claude Opus · Gonzalo</div></div></div>
-        <div class="agent-card marco"><div class="agent-avatar">👨‍💻</div><div class="agent-info"><h3><span class="dot"></span>Marco</h3><div class="desc">Human · Developer</div></div></div>
-        <div class="agent-card gonzalo"><div class="agent-avatar">👨‍🎨</div><div class="agent-info"><h3><span class="dot"></span>Gonzalo</h3><div class="desc">Human · Developer</div></div></div>
+    
+    <div class="agents-strip">
+        <div class="agent-chip hermes">
+            <div class="av-circle">🦅<div class="status-dot online"></div></div>
+            <div class="agent-meta"><h3>Hermes</h3><div class="role">Primary Coordinator · Marco</div><div class="model">claude-opus-4</div></div>
+        </div>
+        <div class="agent-chip jarvis">
+            <div class="av-circle">🤖<div class="status-dot offline" id="jarvis-dot"></div></div>
+            <div class="agent-meta"><h3>Jarvis</h3><div class="role">Tactical Ops · Gonzalo</div><div class="model">claude-opus-4</div></div>
+        </div>
+        <div class="agent-chip marco">
+            <div class="av-circle">👨‍💻<div class="status-dot online"></div></div>
+            <div class="agent-meta"><h3>Marco</h3><div class="role">Developer · Human</div></div>
+        </div>
+        <div class="agent-chip gonzalo">
+            <div class="av-circle">👨‍🎨<div class="status-dot offline"></div></div>
+            <div class="agent-meta"><h3>Gonzalo</h3><div class="role">Developer · Human</div></div>
+        </div>
     </div>
-    <div class="container">
+    
+    <div class="main">
         <!-- Bot Chat -->
         <div class="panel">
-            <div class="panel-header"><span>🤖 Bot Chat</span><span class="badge" id="bot-count">0 msgs</span></div>
-            <div class="panel-body" id="bot-chat"><div class="loading">Loading...</div></div>
+            <div class="panel-head">
+                <div class="panel-title">🤖 Bot Chat <span class="panel-badge" id="bot-count">0</span></div>
+            </div>
+            <div class="panel-body" id="bot-chat"><div style="color:var(--text-dim);text-align:center;padding:40px">Loading...</div></div>
         </div>
+        
         <!-- Human Chat -->
         <div class="panel">
-            <div class="panel-header"><span>👥 Human Chat</span><span class="badge" id="human-count">0 msgs</span></div>
-            <div class="panel-body" id="human-chat"><div class="loading">Loading...</div></div>
+            <div class="panel-head">
+                <div class="panel-title">💬 Human Chat <span class="panel-badge" id="human-count">0</span></div>
+            </div>
+            <div class="panel-body" id="human-chat"><div style="color:var(--text-dim);text-align:center;padding:40px">Loading...</div></div>
             <div id="token-area"></div>
-            <div class="chat-input" id="chat-form" style="display:none">
+            <div class="chat-input-bar" id="chat-form" style="display:none">
                 <select id="sender"><option value="Marco">Marco</option><option value="Gonzalo">Gonzalo</option></select>
-                <input type="text" id="msg-input" placeholder="Escribe aquí...">
+                <input type="text" id="msg-input" placeholder="Escribe un mensaje...">
                 <button onclick="sendMessage()" id="send-btn">Enviar</button>
             </div>
         </div>
-        <!-- Right column -->
-        <div class="right-col">
+        
+        <!-- Right sidebar -->
+        <div class="sidebar">
             <div class="panel" style="flex:0 0 auto">
-                <div class="stats-row">
-                    <div class="stat"><div class="num" id="s-commits">-</div><div class="lbl">Commits</div></div>
-                    <div class="stat"><div class="num" id="s-msgs">-</div><div class="lbl">Messages</div></div>
+                <div class="stats-grid">
+                    <div class="stat-card"><div class="stat-num" id="s-commits">—</div><div class="stat-label">Commits</div></div>
+                    <div class="stat-card"><div class="stat-num" id="s-msgs">—</div><div class="stat-label">Messages</div></div>
+                    <div class="stat-card"><div class="stat-num" id="s-tasks-done">—</div><div class="stat-label">Tasks Done</div></div>
+                    <div class="stat-card"><div class="stat-num" id="s-tasks-open">—</div><div class="stat-label">Tasks Open</div></div>
                 </div>
             </div>
-            <div class="panel" style="flex:1">
-                <div class="panel-header">📊 Activity</div>
-                <div class="panel-body" id="commits-body"><div class="loading">Loading...</div></div>
+            <div class="panel" style="flex:0 0 auto; max-height: 40%;">
+                <div class="panel-head"><div class="panel-title">📋 Tasks</div></div>
+                <div class="panel-body" id="tasks-body"><div style="color:var(--text-dim)">Loading...</div></div>
             </div>
             <div class="panel" style="flex:1">
-                <div class="panel-header">✅ Tasks</div>
-                <div class="panel-body" id="tasks-body"><div class="loading">Loading...</div></div>
+                <div class="panel-head"><div class="panel-title">📊 Activity</div></div>
+                <div class="panel-body" id="commits-body"><div style="color:var(--text-dim)">Loading...</div></div>
             </div>
         </div>
     </div>
+    
     <script>
         const OWNER='marcomendezz', REPO='pene-lab-collab';
         const API=`https://api.github.com/repos/${OWNER}/${REPO}`;
         let ghToken = localStorage.getItem('gh_token') || '';
         
+        // Escape HTML to prevent XSS
+        function esc(t) { const d=document.createElement('div'); d.textContent=t; return d.innerHTML; }
+        
+        // Clock
+        function updateClock() {
+            const now = new Date().toLocaleString('es-MX', {timeZone:'America/Mexico_City', hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false});
+            document.getElementById('clock').textContent = now + ' CST';
+        }
+        setInterval(updateClock, 1000); updateClock();
+        
+        // Token
         function initTokenUI() {
             const area = document.getElementById('token-area');
             if (ghToken) {
                 document.getElementById('chat-form').style.display = 'flex';
-                area.innerHTML = '<div style="padding:4px 8px;font-size:10px;color:#3fb950">✅ Token configured — you can chat!</div>';
+                area.innerHTML = '';
             } else {
-                area.innerHTML = `<div class="token-setup">
-                    <strong>⚠️ Para chatear necesitas un GitHub token</strong><br>
-                    <span style="color:#8b949e">github.com → Settings → Developer settings → Personal access tokens → Classic → scope: public_repo</span>
+                area.innerHTML = `<div class="token-box">
+                    <strong>⚠️ GitHub token needed to chat</strong><br>
+                    <span style="color:var(--text-dim)">Settings → Developer settings → Personal access tokens → Classic → scope: public_repo</span>
                     <input type="password" id="token-input" placeholder="ghp_...">
-                    <button onclick="saveToken()">Guardar</button>
-                    <span style="font-size:10px;color:#8b949e">(se guarda local, nunca se sube)</span>
+                    <button onclick="saveToken()">Save</button>
                 </div>`;
             }
         }
         function saveToken() {
             const t = document.getElementById('token-input').value.trim();
-            if (t) { ghToken = t; localStorage.setItem('gh_token', t); initTokenUI(); }
+            if (t) { ghToken=t; localStorage.setItem('gh_token',t); initTokenUI(); }
         }
-
+        
+        // API helpers
         async function fetchFile(path) {
             try {
                 const h = {'Accept':'application/vnd.github.v3.raw'};
@@ -190,11 +293,12 @@
             try {
                 const h = {};
                 if (ghToken) h['Authorization'] = `token ${ghToken}`;
-                const r = await fetch(`${API}/commits?per_page=15`, {headers:h, cache:'no-store'});
+                const r = await fetch(`${API}/commits?per_page=20`, {headers:h, cache:'no-store'});
                 return r.ok ? await r.json() : [];
             } catch(e) { return []; }
         }
-
+        
+        // Parse chat markdown
         function parseChat(text) {
             if (!text) return [];
             const msgs = [];
@@ -204,6 +308,7 @@
             }
             return msgs;
         }
+        
         function cls(a) {
             const l=a.toLowerCase();
             if (l==='hermes'||l==='atheon') return 'hermes';
@@ -220,71 +325,88 @@
             if (l==='gonzalo') return '👨‍🎨';
             return '⚙️';
         }
-        function esc(t) {
-            const d = document.createElement('div');
-            d.textContent = t;
-            return d.innerHTML;
-        }
+        
         function renderMsgs(msgs, elId, countId) {
-            const el=document.getElementById(elId);
-            document.getElementById(countId).textContent=msgs.length+' msgs';
-            if (!msgs.length) { el.innerHTML='<div class="loading">No messages yet</div>'; return; }
-            el.innerHTML=msgs.map(m=>`<div class="chat-msg ${cls(m.agent)}"><div class="chat-av">${emoji(m.agent)}</div><div class="bubble"><div class="name">${esc(m.agent)} <span class="time">${esc(m.time)}</span></div><div class="text">${esc(m.text)}</div></div></div>`).join('');
-            el.scrollTop=el.scrollHeight;
+            const el = document.getElementById(elId);
+            document.getElementById(countId).textContent = msgs.length;
+            if (!msgs.length) { el.innerHTML='<div style="color:var(--text-dim);text-align:center;padding:40px">No messages yet</div>'; return; }
+            el.innerHTML = msgs.map(m => `
+                <div class="msg ${cls(m.agent)}">
+                    <div class="msg-av">${emoji(m.agent)}</div>
+                    <div class="msg-bubble">
+                        <div class="msg-name">${esc(m.agent)} <span class="msg-time">${esc(m.time)}</span></div>
+                        <div class="msg-text">${esc(m.text)}</div>
+                    </div>
+                </div>`).join('');
+            el.scrollTop = el.scrollHeight;
         }
+        
         function renderCommits(commits) {
-            const el=document.getElementById('commits-body');
-            document.getElementById('s-commits').textContent=commits.length;
-            if (!commits.length) { el.innerHTML='<div class="loading">No commits</div>'; return; }
-            el.innerHTML=commits.slice(0,12).map(c=>{
-                const d=new Date(c.commit.author.date).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
-                const a=c.commit.message.startsWith('HERMES')?'hermes':c.commit.message.startsWith('JARVIS')?'jarvis':'';
-                const t=a?`<span class="tag ${a}">${a==='hermes'?'🦅':'🤖'}</span> `:'';
-                const safeMsg=esc(c.commit.message.substr(0,50));
-                const safeAuthor=esc(c.commit.author.name);
-                return `<div class="commit">${t}<span class="sha">${c.sha.substr(0,7)}</span> ${safeMsg}<div class="meta">${safeAuthor} · ${d}</div></div>`;
+            const el = document.getElementById('commits-body');
+            document.getElementById('s-commits').textContent = commits.length;
+            if (!commits.length) { el.innerHTML='<div style="color:var(--text-dim)">No commits</div>'; return; }
+            el.innerHTML = commits.slice(0,15).map(c => {
+                const d = new Date(c.commit.author.date).toLocaleString('es-MX',{timeZone:'America/Mexico_City', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'});
+                const msg = c.commit.message.toUpperCase();
+                const tag = msg.startsWith('HERMES') ? '<span class="commit-tag hermes">🦅 Hermes</span>' :
+                           msg.startsWith('JARVIS') ? '<span class="commit-tag jarvis">🤖 Jarvis</span>' : '';
+                return `<div class="commit-item">
+                    ${tag}<span class="commit-sha">${esc(c.sha.substr(0,7))}</span>
+                    <div class="commit-msg">${esc(c.commit.message.substr(0,60))}</div>
+                    <div class="commit-meta">${esc(c.commit.author.name)} · ${esc(d)}</div>
+                </div>`;
             }).join('');
         }
+        
         function renderTasks(text) {
-            const el=document.getElementById('tasks-body');
-            if (!text) { el.innerHTML='<div class="loading">No tasks</div>'; return; }
-            let h='';
+            const el = document.getElementById('tasks-body');
+            if (!text) { el.innerHTML='<div style="color:var(--text-dim)">No tasks</div>'; return; }
+            let html = '', done=0, open=0;
             for (const l of text.split('\n')) {
-                if (l.match(/^- \[x\]/)) h+=`<div class="task done">✅ ${l.replace(/^- \[x\] /,'')}</div>`;
-                else if (l.match(/^- \[ \]/)) h+=`<div class="task">⬜ ${l.replace(/^- \[ \] /,'')}</div>`;
-                else if (l.startsWith('##')) h+=`<div style="font-weight:600;margin:6px 0 2px;color:#58a6ff;font-size:12px">${l.replace(/^#+\s*/,'')}</div>`;
+                if (l.match(/^- \[x\]/i)) {
+                    done++;
+                    html += `<div class="task-item done"><span class="task-check">✅</span><span class="task-text">${esc(l.replace(/^- \[x\]\s*/i,''))}</span></div>`;
+                } else if (l.match(/^- \[ \]/)) {
+                    open++;
+                    html += `<div class="task-item"><span class="task-check">⬜</span><span class="task-text">${esc(l.replace(/^- \[ \]\s*/,''))}</span></div>`;
+                } else if (l.startsWith('##')) {
+                    html += `<div class="task-section">${esc(l.replace(/^#+\s*/,''))}</div>`;
+                }
             }
-            el.innerHTML=h||'<div class="loading">No tasks</div>';
+            document.getElementById('s-tasks-done').textContent = done;
+            document.getElementById('s-tasks-open').textContent = open;
+            el.innerHTML = html || '<div style="color:var(--text-dim)">No tasks</div>';
         }
-
+        
+        // Send message
         async function sendMessage() {
-            if (!ghToken) return alert('Need GitHub token first');
-            const input=document.getElementById('msg-input');
-            const msg=input.value.trim();
+            if (!ghToken) return;
+            const input = document.getElementById('msg-input');
+            const msg = input.value.trim();
             if (!msg) return;
-            const sender=document.getElementById('sender').value;
-            const btn=document.getElementById('send-btn');
-            btn.disabled=true; btn.textContent='...';
+            const sender = document.getElementById('sender').value;
+            const btn = document.getElementById('send-btn');
+            btn.disabled = true;
             try {
                 const {content, sha} = await fetchFileSha('shared-context/human-chat.md');
                 if (!content || !sha) throw new Error('Could not fetch file');
-                const now=new Date().toLocaleString('en-CA',{timeZone:'America/Mexico_City',hour12:false}).replace(',','');
-                const newLine=`\n[${now} CST] ${sender}: ${msg}\n`;
-                const newContent=content+newLine;
-                const encoded=btoa(unescape(encodeURIComponent(newContent)));
-                const r=await fetch(`${API}/contents/shared-context/human-chat.md`, {
+                const now = new Date().toLocaleString('en-CA',{timeZone:'America/Mexico_City',hour12:false}).replace(',','');
+                const newContent = content + `\n[${now} CST] ${sender}: ${msg}\n`;
+                const encoded = btoa(unescape(encodeURIComponent(newContent)));
+                const r = await fetch(`${API}/contents/shared-context/human-chat.md`, {
                     method:'PUT',
                     headers:{'Authorization':`token ${ghToken}`,'Content-Type':'application/json'},
                     body:JSON.stringify({message:`${sender}: ${msg.substr(0,50)}`,content:encoded,sha:sha})
                 });
                 if (!r.ok) throw new Error('Push failed: '+r.status);
-                input.value='';
+                input.value = '';
                 setTimeout(refreshAll, 1000);
             } catch(e) { alert('Error: '+e.message); }
-            btn.disabled=false; btn.textContent='Enviar';
+            btn.disabled = false;
         }
-        document.getElementById('msg-input')?.addEventListener('keydown', e=>{ if(e.key==='Enter') sendMessage(); });
-
+        document.addEventListener('keydown', e => { if(e.key==='Enter' && document.activeElement.id==='msg-input') sendMessage(); });
+        
+        // Refresh all data
         async function refreshAll() {
             const [botText, humanText, commits, tasksText] = await Promise.all([
                 fetchFile('shared-context/chat.md'),
@@ -292,15 +414,15 @@
                 fetchCommits(),
                 fetchFile('shared-context/tasks.md')
             ]);
-            renderMsgs(parseChat(botText),'bot-chat','bot-count');
-            renderMsgs(parseChat(humanText),'human-chat','human-count');
+            const botMsgs = parseChat(botText);
+            const humanMsgs = parseChat(humanText);
+            renderMsgs(botMsgs, 'bot-chat', 'bot-count');
+            renderMsgs(humanMsgs, 'human-chat', 'human-count');
             renderCommits(commits);
             renderTasks(tasksText);
-            const totalMsgs=parseChat(botText).length+parseChat(humanText).length;
-            document.getElementById('s-msgs').textContent=totalMsgs;
-            document.getElementById('refresh-time').textContent='Updated: '+new Date().toLocaleTimeString('es-MX');
+            document.getElementById('s-msgs').textContent = botMsgs.length + humanMsgs.length;
         }
-
+        
         initTokenUI();
         refreshAll();
         setInterval(refreshAll, 15000);
